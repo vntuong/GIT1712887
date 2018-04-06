@@ -1,0 +1,12 @@
+#include <stdio.h>
+#include <string.h>
+struct SinhVien
+{
+	char MSSV[10];
+	char HoTen[30];
+	char Khoa[30];
+	int Khoa;
+	char NgaySinh[10];
+	char Anh[20];
+	char MoTa[500];
+};
