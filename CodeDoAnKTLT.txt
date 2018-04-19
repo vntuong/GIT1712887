@@ -1,38 +1,21 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-using namespace std;
+#include <stdio.h>
+#include <conio.h>
+#include <string.h>
 struct SinhVien
 {
-	char MSSV[10];
-	char HoTen[30];
-	char Khoa[30];
+	wchar_t MSSV[10];
+	wchar_t HoTen[30];
+	wchar_t Khoa[30];
 	int Khóa;
-	char NgaySinh[10];
-	char Anh[20];
-	char MoTa[500];
+	wchar_t NgaySinh[10];
+	wchar_t email[20];
+	wchar_t Anh[20];
+	wchar_t MoTa[500];
 };
 typedef struct SinhVien SINHVIEN;
-struct test
-{
-	string a;
-	string b;
-	string c;
-};
-typedef struct test TEST;
 void main()
 {
-	ifstream fileIN;
-	ofstream fileOUT;
-	TEST Test;
-	fileIN.open("test.csv", ios::in);
-	fileOUT.open("testOP.html", ios::out);
-	getline(fileIN, Test.a, ',');
-	getline(fileIN, Test.b, ',');
-	getline(fileIN, Test.c, ',');
-	fileOUT << Test.a << Test.b << Test.c;
-
-	fileIN.close();
-	fileOUT.close();
-	system("pause");
+	FILE* DuLieu;
+	DuLieu = _wfopen(L"DuLieuSinhVien.csv", L"r,ccs=UTF-8");
+	getch();
 }
