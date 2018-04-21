@@ -1,21 +1,57 @@
+#include <fcntl.h> 
+#include <io.h>   
 #include <stdio.h>
 #include <conio.h>
-#include <string.h>
+#include <string>
 struct SinhVien
 {
-	wchar_t MSSV[10];
-	wchar_t HoTen[30];
-	wchar_t Khoa[30];
-	int Khóa;
-	wchar_t NgaySinh[10];
-	wchar_t email[20];
-	wchar_t Anh[20];
-	wchar_t MoTa[500];
+	wchar_t* MSSV;
+	wchar_t* HoTen;
+	wchar_t* Khoa;
+	wchar_t* KhoaHoc;
+	wchar_t* NgaySinh;
+	wchar_t* Anh;
+	wchar_t* Email;
+	wchar_t* MoTa;
+	wchar_t* SoThich;
 };
 typedef struct SinhVien SINHVIEN;
+void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv)
+{
+	int i=0;
+	wchar_t* buf = (wchar_t*)malloc(150 * sizeof(wchar_t));
+	for (i; i < 5; i++)
+	{
+		fgetws(buf, 150, DuLieu);
+		sv[i].MSSV = wcstok(buf, L",");
+		sv[i].HoTen = wcstok(NULL, L",");
+		sv[i].Khoa = wcstok(NULL, L",");
+		sv[i].KhoaHoc = wcstok(NULL, L",");
+		sv[i].NgaySinh = wcstok(NULL, L",");
+		sv[i].Anh = wcstok(NULL, L",");
+		sv[i].Email = wcstok(NULL, L",");
+		sv[i].MoTa = wcstok(NULL, L",");
+		sv[i].SoThich = wcstok(NULL, L"");
+	}
+}
+void XuatSV(FILE* test, SINHVIEN* sv)
+{
+	for (int i = 0; i < 5;i++)
+	{
+		fwprintf(test,L"%ls %ls %ls %ls %ls %ls %ls %ls %ls\n", sv[i].MSSV, sv[i].HoTen, sv[i].Khoa, sv[i].KhoaHoc, sv[i].NgaySinh, sv[i].Anh, sv[i].Email, sv[i].MoTa, sv[i].SoThich);
+	}
+}
 void main()
 {
-	FILE* DuLieu;
-	DuLieu = _wfopen(L"DuLieuSinhVien.csv", L"r,ccs=UTF-8");
-	getch();
+	int i = 0;
+	_setmode(_fileno(stdout), _O_U8TEXT); 
+	_setmode(_fileno(stdin), _O_U8TEXT); 
+	SINHVIEN* sv = (SINHVIEN*)malloc(10 * sizeof(SINHVIEN));
+	FILE* DuLieu = _wfopen(L"DuLieuSinhVien.csv", L"rt, ccs = UTF-8");
+	FILE* test = _wfopen(L"test.txt", L"wt, ccs = UTF-8");
+	DocFileSinhVienCSV(DuLieu, sv);
+	fwprintf(test, L"%ls %ls %ls %ls %ls %ls %ls %ls %ls\n", sv[i].MSSV, sv[i].HoTen, sv[i].Khoa, sv[i].KhoaHoc, sv[i].NgaySinh, sv[i].Anh, sv[i].Email, sv[i].MoTa, sv[i].SoThich);
+	fclose(DuLieu);
+	fclose(test);
+	getchar();
 }
