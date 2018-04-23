@@ -16,9 +16,25 @@ struct SinhVien
 	wchar_t* SoThich;
 };
 typedef struct SinhVien SINHVIEN;
-void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv)
+int countLine(FILE *f)
 {
-	for (int i = 0; !feof(DuLieu); i++)
+	int line = 0;
+	wchar_t ch;
+	do
+	{
+		ch = fgetwc(f);
+		if (ch == L'\n')
+		{
+			line++;
+		}
+	} while (ch != WEOF);
+	fseek(f, 0, SEEK_SET);
+	return line;
+}
+
+void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv, int line)
+{
+	for (int i = 0; i < line; i++)
 	{
 		wchar_t* buf = (wchar_t*)malloc(150 * sizeof(wchar_t));
 		fgetws(buf, 150, DuLieu);
@@ -33,9 +49,9 @@ void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv)
 		(*(sv + i)).SoThich = wcstok(NULL, L"\n");
 	}
 }
-void XuatSV(SINHVIEN* sv)
+void XuatSV(SINHVIEN* sv, int line)
 {
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < line; i++)
 	{
 		wprintf(L"%ls, %ls, %ls, %ls, %ls, %ls, %ls, %ls, %ls\n", sv[i].MSSV, sv[i].HoTen, sv[i].Khoa, sv[i].KhoaHoc, sv[i].NgaySinh, sv[i].Anh, sv[i].Email, sv[i].MoTa, sv[i].SoThich);
 	}
@@ -137,16 +153,17 @@ void xuatHTML(SINHVIEN sv)
 }
 void main()
 {
-	_setmode(_fileno(stdout), _O_U8TEXT); 
-	_setmode(_fileno(stdin), _O_U8TEXT); 
+	_setmode(_fileno(stdout), _O_U8TEXT);
+	_setmode(_fileno(stdin), _O_U8TEXT);
 	SINHVIEN* sv = (SINHVIEN*)malloc(10 * sizeof(SINHVIEN));
 	FILE* DuLieu = _wfopen(L"DuLieuSinhVien.csv", L"rt, ccs = UTF-8");
-	DocFileSinhVienCSV(DuLieu, sv);
-	for (int i = 0; i < 10; i++)
+	int line = countLine(DuLieu);
+	DocFileSinhVienCSV(DuLieu, sv, line);
+	XuatSV(sv, line);
+	for (int i = 0; i < line; i++)
 	{
 		xuatHTML(sv[i]);
 	}
 	free(sv);
 	fclose(DuLieu);
-	getchar();
 }
