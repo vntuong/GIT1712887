@@ -1,4 +1,4 @@
-#include <fcntl.h> 
+include <fcntl.h> 
 #include <io.h>   
 #include <stdio.h>
 #include <conio.h>
@@ -16,25 +16,11 @@ struct SinhVien
 	wchar_t* SoThich;
 };
 typedef struct SinhVien SINHVIEN;
-int countLine(FILE *f)
-{
-	int line = 0;
-	wchar_t ch;
-	do
-	{
-		ch = fgetwc(f);
-		if (ch == L'\n')
-		{
-			line++;
-		}
-	} while (ch != WEOF);
-	fseek(f, 0, SEEK_SET);
-	return line;
-}
 
-void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv, int line)
+void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv, int &i)
 {
-	for (int i = 0; i < line; i++)
+	i = 0;
+	while (!feof(DuLieu))
 	{
 		wchar_t* buf = (wchar_t*)malloc(150 * sizeof(wchar_t));
 		fgetws(buf, 150, DuLieu);
@@ -47,6 +33,7 @@ void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv, int line)
 		(*(sv + i)).Email = wcstok(NULL, L",");
 		(*(sv + i)).MoTa = wcstok(NULL, L",");
 		(*(sv + i)).SoThich = wcstok(NULL, L"\n");
+		i++;
 	}
 }
 void XuatSV(SINHVIEN* sv, int line)
@@ -57,112 +44,145 @@ void XuatSV(SINHVIEN* sv, int line)
 	}
 }
 
-void xuatHTML(SINHVIEN sv)
+int ViTriChuoiConTrongChuoiCha(wchar_t* s, wchar_t* s1)
 {
-	wchar_t filename[50];
-	wcscpy(filename, L"website\\");
+	int i, j;
+	int l = wcslen(s), l1 = wcslen(s1);
+	if (l1 > l)
+	{
+		return -1;
+	}
+	else
+	{
+		if (l1 == l)
+		{
+			for (i = 0; i < l; i++)
+			{
+				if (s[i] != s1[i])
+					return -1;
+			}
+			return 0;
+		}
+		else
+		{
+			for (i = 0; i < l - l1; i++)
+			{
+				int dem = 0;
+				for (j = 0; j < l1; j++)
+				{
+					if (s[i + j] == s1[j])
+						dem++;
+					else
+						break;
+				}
+				if (dem == l1)
+					return i;
+			}
+			return -1;
+		}
+	}
+}
+wchar_t* ThayTheChuoi(wchar_t* s, wchar_t* s1, wchar_t* s2)
+{
+	int i, j;
+	int l = wcslen(s), l1 = wcslen(s1), l2 = wcslen(s2);
+	int pos = ViTriChuoiConTrongChuoiCha(s, s1);
+	wchar_t* arrTruoc = (wchar_t*)malloc(pos * sizeof(wchar_t));
+	wchar_t* arrSau = (wchar_t*)malloc((l - pos - l1) * sizeof(wchar_t));
+	if (pos == -1)
+	{
+		return s;
+	}
+	else
+	{
+		for (i = 0; i < pos; i++)
+		{
+			arrTruoc[i] = s[i];
+		}
+		arrTruoc[i] = '\0';
+		for (j = 0; j < l - pos - l1; j++)
+		{
+			arrSau[j] = s[j + pos + l1];
+		}
+		arrSau[j] = '\0';
+	}
+	wchar_t* arrLast = (wchar_t*)malloc(150 * sizeof(wchar_t));
+	wcscpy(arrLast, arrTruoc);
+	wcscat(wcscat(arrLast, s2), arrSau);
+	return arrLast;
+}
+void XuatHTML(SINHVIEN sv)
+{
+	wchar_t strMSSV[] = L"MaSoSinhVien";
+	wchar_t strHoTen[] = L"HoVaTen";
+	wchar_t strKhoa[] = L"KhoaCuaBan";
+	wchar_t strKhoaHoc[] = L"KhoaHocCuaBan";
+	wchar_t strNgaySinh[] = L"NgaySinhCuaBan";
+	wchar_t strHinhAnh[] = L"LinkHinhAnh";
+	wchar_t strEmail[] = L"EmailCuaBan";
+	wchar_t strMoTa[] = L"MoTaBanThan";
+	wchar_t strSoThich[] = L"SoThichCuaBan";
+	wchar_t* filename = (wchar_t*)malloc(30 * sizeof(wchar_t));
+	wcscpy(filename, L"Website\\");
 	wcscat(filename, sv.MSSV);
 	wcscat(filename, L".htm");
-	FILE*fp = _wfopen(filename, L"wt, ccs=UTF-8");
-	fwprintf(fp, L"<!DOCTYPE html PUBLIC \"-\//W3C//DTD XHTML 1.0 Transitional\//EN\"\n");
-	fwprintf(fp, L"\"http:\//www.w3.org\/TR\/xhtml1\/DTD\/xhtml1-transitional.dtd\">\n");
-	fwprintf(fp, L"<html xmlns=\"http:\//www.w3.org\/1999\/xhtml\">\n");
-	fwprintf(fp, L"<head>\n");
-	fwprintf(fp, L"<meta http-equiv=\"Content-Type\" content=\"text\/html; charset=utf-8\" \/>\n");
-	fwprintf(fp, L"<link rel=\"stylesheet\" type=\"text\/css\" href=\"personal.css\" \/>\n");
-	fwprintf(fp, L"<title>HCMUS - %s<\/title>\n", sv.HoTen);
-	fwprintf(fp, L"<\/head>\n");
-	fwprintf(fp, L"<body>\n");
-	fwprintf(fp, L"<div class=\"Layout_container\">\n");
-	fwprintf(fp, L"<!-- Begin Layout Banner Region -->\n");
-	fwprintf(fp, L"<div class=\"Layout_Banner\" >\n");
-	fwprintf(fp, L"<div><img id=\"logo\" src=\"Images\/logo.jpg\" height=\"105\"\/><\/div>\n");
-	fwprintf(fp, L"<div class=\"Header_Title\">TRU?NG Ð?I H?C KHOA H?C T? NHIÊN<\/div>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<!-- End Layout Banner Region -->\n");
-	fwprintf(fp, L"<!-- Begin Layout MainContents Region -->\n");
-	fwprintf(fp, L"<div class=\"Layout_MainContents\">\n");
-	fwprintf(fp, L"<!-- Begin Below Banner Region -->\n");
-	fwprintf(fp, L"<div class=\"Personal_Main_Information\">\n");
-	fwprintf(fp, L"<!-- Begin Thông tin cá nhân c?a sinh viên ----------------\n");
-	fwprintf(fp, L"------------------------------------------------------------------------- -->\n");
-	fwprintf(fp, L"<div class=\"Personal_Location\">\n");
-	fwprintf(fp, L"<img src=\"Images\/LogoFooter.jpg\" width=\"27\"height=\"33\" \/>\n");
-	fwprintf(fp, L"<div class=\"Personal_FullName\">%s - %s<\/div>\n", sv.HoTen, sv.MSSV);
-	fwprintf(fp, L"<div class=\"Personal_Department\">Khoa %s<\/div>\n", sv.Khoa);
-	fwprintf(fp, L"<br \/>\n");
-	fwprintf(fp, L"<div class=\"Personal_Phone\">\n");
-	fwprintf(fp, L"Email: %s\n", sv.Email);
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<br \/>\n");
-	fwprintf(fp, L"<br \/>\n");
-	fwprintf(fp, L"</div>\n");
-	fwprintf(fp, L"<!-- End Thông tin cá nhân c?a sinh viên ------------------\n");
-	fwprintf(fp, L"----------------------------------------------------------------------- -->\n");
-	fwprintf(fp, L"<div class=\"Personal_HinhcanhanKhung\">\n");
-	fwprintf(fp, L"<img src=\"Images\/%s\"\n", sv.Anh);
-	fwprintf(fp, L"class=\"Personal_Hinhcanhan\" \/>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<!-- End Below Banner Region -->\n");
-	fwprintf(fp, L"<!-- Begin MainContents Region -->\n");
-	fwprintf(fp, L"<div class=\"MainContain\">\n");
-	fwprintf(fp, L"<!-- Begin Top Region -->\n");
-	fwprintf(fp, L"<div class=\"MainContain_Top\">\n");
-	fwprintf(fp, L"<div class=\"InfoGroup\">Thông tin cá nhân<\/div>\n");
-	fwprintf(fp, L"<div>\n");
-	fwprintf(fp, L"<ul class=\"TextInList\">\n");
-	fwprintf(fp, L"<li>H? và tên: %s<\/li>\n", sv.HoTen);
-	fwprintf(fp, L"<li>MSSV: %s<\/li>\n", sv.MSSV);
-	fwprintf(fp, L"<li>Sinh viên khoa %s<\/li>\n", sv.Khoa);
-	fwprintf(fp, L"<li>Ngày sinh: %s<\/li>\n", sv.NgaySinh);
-	fwprintf(fp, L"<li>Email: %s<\/li>\n", sv.Email);
-	fwprintf(fp, L"<\/ul>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<div class=\"InfoGroup\">S? thích<\/div>\n");
-	fwprintf(fp, L"<div>\n");
-	fwprintf(fp, L"<ul class=\"TextInList\">\n");
-	fwprintf(fp, L"<li>%s<\/li>\n", sv.SoThich);
-	fwprintf(fp, L"<\/ul>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<div class=\"InfoGroup\">Mô t?<\/div>\n");
-	fwprintf(fp, L"<div class=\"Description\">\n");
-	fwprintf(fp, L"%s\n", sv.MoTa);
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<!-- Begin Layout Footer -->\n");
-	fwprintf(fp, L"<div class=\"Layout_Footer\">\n");
-	fwprintf(fp, L"<div class=\"divCopyright\">\n");
-	fwprintf(fp, L"<br \/>\n");
-	fwprintf(fp, L"<img src=\"Images\/LogoFooter_gray.jpg\" width=\"34\" height=\"41\" \/><br \/>\n");
-	fwprintf(fp, L"<br \/>\n");
-	fwprintf(fp, L"@2018<\/br>\n");
-	fwprintf(fp, L"Ð? án gi? k?<\/br>\n");
-	fwprintf(fp, L"K? thu?t l?p trình<\/br>\n");
-	fwprintf(fp, L"TH2017\/18<\/br>\n");
-	fwprintf(fp, L"1712887 - Võ Nh?t Tu?ng<\/br>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<!-- End Layout Footer -->\n");
-	fwprintf(fp, L"<\/div>\n");
-	fwprintf(fp, L"<\/body>\n");
-	fwprintf(fp, L"<\/html>\n");
-	fclose(fp);
+	FILE* fb = _wfopen(filename, L"wt, ccs=UTF-8");
+	FILE* MaNguon = _wfopen(L"MaNguonHTML.txt", L"rt, ccs=UTF-8");
+	while (!feof(MaNguon))
+	{
+		wchar_t* buf = (wchar_t*)malloc(200 * sizeof(wchar_t));
+		fgetws(buf, 200, MaNguon);
+		int a = ViTriChuoiConTrongChuoiCha(buf, strHoTen);
+		int b = ViTriChuoiConTrongChuoiCha(buf, strMSSV);
+		int c = ViTriChuoiConTrongChuoiCha(buf, strKhoa);
+		int d = ViTriChuoiConTrongChuoiCha(buf, strKhoaHoc);
+		int e = ViTriChuoiConTrongChuoiCha(buf, strNgaySinh);
+		int f = ViTriChuoiConTrongChuoiCha(buf, strHinhAnh);
+		int g = ViTriChuoiConTrongChuoiCha(buf, strEmail);
+		int h = ViTriChuoiConTrongChuoiCha(buf, strMoTa);
+		int k = ViTriChuoiConTrongChuoiCha(buf, strSoThich);
+		
+		if (a != -1)
+			fputws(ThayTheChuoi(buf, strHoTen, sv.HoTen), fb);
+		if (b != -1)
+			fputws(ThayTheChuoi(buf, strMSSV, sv.MSSV), fb);
+		if (c != -1)
+			fputws(ThayTheChuoi(buf, strKhoa, sv.Khoa), fb);
+		if (d != -1)
+			fputws(ThayTheChuoi(buf, strKhoaHoc, sv.KhoaHoc), fb);
+		if (e != -1)
+			fputws(ThayTheChuoi(buf, strNgaySinh, sv.NgaySinh), fb);
+		if (f != -1)
+			fputws(ThayTheChuoi(buf, strHinhAnh, sv.Anh), fb);
+		if (g != -1)
+			fputws(ThayTheChuoi(buf, strEmail, sv.Email), fb);
+		if (h != -1)
+			fputws(ThayTheChuoi(buf, strMoTa, sv.MoTa), fb);
+		if (k != -1)
+			fputws(ThayTheChuoi(buf, strSoThich, sv.SoThich), fb);
+		
+		if (a == -1 && b ==-1 && c ==-1 && d ==-1 && e ==-1 && f ==-1 && g ==-1 && h ==-1 && k == -1)
+		{
+			fputws(buf, fb);
+		}
+	}
+	fclose(fb);
+	fclose(MaNguon);
 }
+
+
 void main()
 {
 	_setmode(_fileno(stdout), _O_U8TEXT);
 	_setmode(_fileno(stdin), _O_U8TEXT);
 	SINHVIEN* sv = (SINHVIEN*)malloc(10 * sizeof(SINHVIEN));
 	FILE* DuLieu = _wfopen(L"DuLieuSinhVien.csv", L"rt, ccs = UTF-8");
-	int line = countLine(DuLieu);
+	int line;
 	DocFileSinhVienCSV(DuLieu, sv, line);
 	XuatSV(sv, line);
 	for (int i = 0; i < line; i++)
 	{
-		xuatHTML(sv[i]);
+		XuatHTML(sv[i]);
 	}
 	free(sv);
 	fclose(DuLieu);
