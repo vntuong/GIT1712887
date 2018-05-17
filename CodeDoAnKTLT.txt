@@ -1,189 +1,302 @@
-include <fcntl.h> 
-#include <io.h>   
-#include <stdio.h>
-#include <conio.h>
-#include <string>
-struct SinhVien
-{
-	wchar_t* MSSV;
-	wchar_t* HoTen;
-	wchar_t* Khoa;
-	wchar_t* KhoaHoc;
-	wchar_t* NgaySinh;
-	wchar_t* Anh;
-	wchar_t* Email;
-	wchar_t* MoTa;
-	wchar_t* SoThich;
-};
-typedef struct SinhVien SINHVIEN;
+﻿#include<iostream>
+#include<windows.h>
+#include<thread>
+#include<conio.h>
 
-void DocFileSinhVienCSV(FILE* DuLieu, SINHVIEN* &sv, int &i)
-{
-	i = 0;
-	while (!feof(DuLieu))
-	{
-		wchar_t* buf = (wchar_t*)malloc(150 * sizeof(wchar_t));
-		fgetws(buf, 150, DuLieu);
-		(*(sv + i)).MSSV = wcstok(buf, L",");
-		(*(sv + i)).HoTen = wcstok(NULL, L",");
-		(*(sv + i)).Khoa = wcstok(NULL, L",");
-		(*(sv + i)).KhoaHoc = wcstok(NULL, L",");
-		(*(sv + i)).NgaySinh = wcstok(NULL, L",");
-		(*(sv + i)).Anh = wcstok(NULL, L",");
-		(*(sv + i)).Email = wcstok(NULL, L",");
-		(*(sv + i)).MoTa = wcstok(NULL, L",");
-		(*(sv + i)).SoThich = wcstok(NULL, L"\n");
-		i++;
-	}
-}
-void XuatSV(SINHVIEN* sv, int line)
-{
-	for (int i = 0; i < line; i++)
-	{
-		wprintf(L"%ls, %ls, %ls, %ls, %ls, %ls, %ls, %ls, %ls\n", sv[i].MSSV, sv[i].HoTen, sv[i].Khoa, sv[i].KhoaHoc, sv[i].NgaySinh, sv[i].Anh, sv[i].Email, sv[i].MoTa, sv[i].SoThich);
-	}
-}
+using namespace std;
+//Hằng số
+#define MAX_CAR 17
+#define MAX_CAR_LENGTH 4
+#define MAX_SPEED 3
+//Biến toàn cục
+POINT** X; //Mảng chứa MAX_CAR xe
+POINT Y; // Đại diện người qua đường
+int cnt = 0;//Biến hỗ trợ trong quá trình tăng tốc độ xe di chuyển
+int MOVING;//Biến xác định hướng di chuyển của người
+int SPEED;// Tốc độ xe chạy (xem như level)
+int HEIGH_CONSOLE = 20, WIDTH_CONSOLE = 70;// Độ cao và rộng của màn hình console
+bool STATE; // Trạng thái sống/chết của người qua đường
 
-int ViTriChuoiConTrongChuoiCha(wchar_t* s, wchar_t* s1)
+//Hàm cố định màn hình console
+void FixConsoleWindow()
 {
-	int i, j;
-	int l = wcslen(s), l1 = wcslen(s1);
-	if (l1 > l)
+	HWND ConsoleWindow = GetConsoleWindow();
+	LONG style = GetWindowLong(ConsoleWindow, GWL_STYLE);//Lấy thông số hiện tại màn hình console
+	style = style & ~(WS_MAXIMIZEBOX)& ~(WS_THICKFRAME);//Set up mờ nút maximize
+	SetWindowLong(ConsoleWindow, GWL_STYLE, style);//Set up lại
+}
+//Hàm khởi tạo mọi vị trí trên console
+void GotoXY(int x, int y)
+{
+	COORD coord;
+	coord.X = x;
+	coord.Y = y;
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);//Thiết lập ví trí lên màn hình
+}
+//Hàm khởi tạo dữ liệu mặc định ban đầu
+void ResetData()
+{
+	MOVING = 'D'; // Ban đầu cho người di chuyển sang phải
+	SPEED = 1; // Tốc độ lúc đầu
+	Y = { 35, 19 };
+	// Tạo mảng xe chạy
+	if (X == NULL)
 	{
-		return -1;
-	}
-	else
-	{
-		if (l1 == l)
+		X = new POINT*[MAX_CAR];
+		for (int i = 0; i < MAX_CAR; i++)
+			X[i] = new POINT[MAX_CAR_LENGTH];
+		for (int i = 0; i < MAX_CAR; i++)
 		{
-			for (i = 0; i < l; i++)
+			int temp = (rand() % (WIDTH_CONSOLE - MAX_CAR_LENGTH)) + 1;
+			for (int j = 0; j < MAX_CAR_LENGTH; j++)
 			{
-				if (s[i] != s1[i])
-					return -1;
+				X[i][j].x = temp + j;
+				X[i][j].y = 2 + i;
 			}
-			return 0;
 		}
-		else
+	}
+}
+//Hàm vẽ khung console
+void DrawBoard(int x, int y, int width, int height, int curPosX = 0, int curPosY = 0)
+{
+	GotoXY(x, y); cout << (char)218;
+	for (int i = 1; i < width; i++)cout << (char)196;
+	cout << (char)191;
+	GotoXY(x, height + y); cout << (char)192;
+	for (int i = 1; i < width; i++)cout << (char)196;
+	cout << (char)217;
+	for (int i = y + 1; i < height + y; i++)
+	{
+		GotoXY(x, i); cout << (char)179;
+		GotoXY(x + width, i); cout << (char)179;
+	}
+	GotoXY(curPosX, curPosY);
+}
+//Hàm bắt đầu game
+void StartGame()
+{
+	system("cls");
+	ResetData(); // Khởi tạo dữ liệu gốc
+	DrawBoard(0, 0, WIDTH_CONSOLE, HEIGH_CONSOLE); // Vẽ màn hình game
+	STATE = true;//Bắt đầu cho Thread chạy
+}
+//Hàm dọn dẹp tài nguyên
+void GabageCollect()
+{
+	for (int i = 0; i < MAX_CAR; i++)
+	{
+		delete[] X[i];
+	}
+	delete[] X;
+}
+//Hàm thoát game
+void ExitGame(HANDLE t)
+{
+	system("cls");
+	TerminateThread(t, 0);
+	GabageCollect();
+}
+//Hàm dừng game
+void PauseGame(HANDLE t)
+{
+	SuspendThread(t);
+}
+//Hàm xử lý khi người đụng xe
+void ProcessDead()
+{
+	STATE = 0;
+	GotoXY(0, HEIGH_CONSOLE +2);
+	printf("Dead, type y to continue or anykey to exit");
+}
+//Hàm xử lý khi người băng qua đường thành công
+void ProcessFinish(POINT& p)
+{
+	SPEED == MAX_SPEED ? SPEED = 1 : SPEED++;
+	p = { 35, 19 }; // Vị trí lúc đầu của người
+	MOVING = 'D'; // Ban đầu cho người di chuyển sang phải
+}
+//Hàm vẽ các toa xe
+void DrawCars(char* s)
+{
+	for (int i = 0; i < MAX_CAR; i++) {
+		for (int j = 0; j < MAX_CAR_LENGTH; j++)
 		{
-			for (i = 0; i < l - l1; i++)
+			GotoXY(X[i][j].x, X[i][j].y);
+			printf("x");
+		}
+	}
+}
+//Hàm vẽ người qua đường
+void DrawSticker(const POINT& p, char* s)
+{
+	GotoXY(p.x, p.y);
+	printf(s);
+}
+//Hàm kiểm tra xem người qua đường có đụng xe không
+bool IsImpact(const POINT& p, int d)
+{
+	if (d == 1 || d == 19)return false;
+	for (int i = 0; i < MAX_CAR_LENGTH; i++)
+	{
+		if (p.x == X[d - 2][i].x && p.y == X[d - 2][i].y) return true;
+	}
+	return false;
+}
+//Hàm di chuyển các toa xe
+void MoveCars()
+{
+	for (int i = 1; i < MAX_CAR; i += 2)
+	{
+		cnt = 0;
+		do{
+			cnt++;
+			for (int j = 0; j < MAX_CAR_LENGTH - 1; j++) {
+				X[i][j] = X[i][j + 1];
+			}
+			X[i][MAX_CAR_LENGTH - 1].x + 1 == WIDTH_CONSOLE ? X[i][MAX_CAR_LENGTH - 1].x = 1 : X[i][MAX_CAR_LENGTH - 1].x++; // Kiểm tra xem xe có đụng màn hình không
+		} while (cnt < SPEED);
+	}
+	for (int i = 0; i < MAX_CAR; i += 2)
+	{
+		cnt = 0;
+		do{
+			cnt++;
+			for (int j = MAX_CAR_LENGTH - 1; j > 0; j--)
 			{
-				int dem = 0;
-				for (j = 0; j < l1; j++)
-				{
-					if (s[i + j] == s1[j])
-						dem++;
-					else
-						break;
-				}
-				if (dem == l1)
-					return i;
+				X[i][j] = X[i][j - 1];
 			}
-			return -1;
-		}
+			X[i][0].x - 1 == 0 ? X[i][0].x = WIDTH_CONSOLE - 1 : X[i][0].x--;// Kiểm tra xem xe có đụng màn hình không
+		} while (cnt < SPEED);
 	}
 }
-wchar_t* ThayTheChuoi(wchar_t* s, wchar_t* s1, wchar_t* s2)
+//Hàm xóa xe (xóa có nghĩa là không vẽ)
+void EraseCars()
 {
-	int i, j;
-	int l = wcslen(s), l1 = wcslen(s1), l2 = wcslen(s2);
-	int pos = ViTriChuoiConTrongChuoiCha(s, s1);
-	wchar_t* arrTruoc = (wchar_t*)malloc(pos * sizeof(wchar_t));
-	wchar_t* arrSau = (wchar_t*)malloc((l - pos - l1) * sizeof(wchar_t));
-	if (pos == -1)
+	for (int i = 0; i < MAX_CAR; i += 2)
 	{
-		return s;
+		cnt = 0;
+		do{
+			GotoXY(X[i][MAX_CAR_LENGTH - 1 - cnt].x, X[i][MAX_CAR_LENGTH - 1 - cnt].y);
+			printf(" ");
+			cnt++;
+		} while (cnt < SPEED);
 	}
-	else
+	for (int i = 1; i < MAX_CAR; i += 2)
 	{
-		for (i = 0; i < pos; i++)
-		{
-			arrTruoc[i] = s[i];
-		}
-		arrTruoc[i] = '\0';
-		for (j = 0; j < l - pos - l1; j++)
-		{
-			arrSau[j] = s[j + pos + l1];
-		}
-		arrSau[j] = '\0';
+		cnt = 0;
+		do{
+			GotoXY(X[i][0 + cnt].x, X[i][0 + cnt].y);
+			printf(" ");
+			cnt++;
+		} while (cnt < SPEED);
 	}
-	wchar_t* arrLast = (wchar_t*)malloc(150 * sizeof(wchar_t));
-	wcscpy(arrLast, arrTruoc);
-	wcscat(wcscat(arrLast, s2), arrSau);
-	return arrLast;
 }
-void XuatHTML(SINHVIEN sv)
+//Hàm di chuyển
+void MoveRight()
 {
-	wchar_t strMSSV[] = L"MaSoSinhVien";
-	wchar_t strHoTen[] = L"HoVaTen";
-	wchar_t strKhoa[] = L"KhoaCuaBan";
-	wchar_t strKhoaHoc[] = L"KhoaHocCuaBan";
-	wchar_t strNgaySinh[] = L"NgaySinhCuaBan";
-	wchar_t strHinhAnh[] = L"LinkHinhAnh";
-	wchar_t strEmail[] = L"EmailCuaBan";
-	wchar_t strMoTa[] = L"MoTaBanThan";
-	wchar_t strSoThich[] = L"SoThichCuaBan";
-	wchar_t* filename = (wchar_t*)malloc(30 * sizeof(wchar_t));
-	wcscpy(filename, L"Website\\");
-	wcscat(filename, sv.MSSV);
-	wcscat(filename, L".htm");
-	FILE* fb = _wfopen(filename, L"wt, ccs=UTF-8");
-	FILE* MaNguon = _wfopen(L"MaNguonHTML.txt", L"rt, ccs=UTF-8");
-	while (!feof(MaNguon))
+	if (Y.x < WIDTH_CONSOLE - 1)
 	{
-		wchar_t* buf = (wchar_t*)malloc(200 * sizeof(wchar_t));
-		fgetws(buf, 200, MaNguon);
-		int a = ViTriChuoiConTrongChuoiCha(buf, strHoTen);
-		int b = ViTriChuoiConTrongChuoiCha(buf, strMSSV);
-		int c = ViTriChuoiConTrongChuoiCha(buf, strKhoa);
-		int d = ViTriChuoiConTrongChuoiCha(buf, strKhoaHoc);
-		int e = ViTriChuoiConTrongChuoiCha(buf, strNgaySinh);
-		int f = ViTriChuoiConTrongChuoiCha(buf, strHinhAnh);
-		int g = ViTriChuoiConTrongChuoiCha(buf, strEmail);
-		int h = ViTriChuoiConTrongChuoiCha(buf, strMoTa);
-		int k = ViTriChuoiConTrongChuoiCha(buf, strSoThich);
-		
-		if (a != -1)
-			fputws(ThayTheChuoi(buf, strHoTen, sv.HoTen), fb);
-		if (b != -1)
-			fputws(ThayTheChuoi(buf, strMSSV, sv.MSSV), fb);
-		if (c != -1)
-			fputws(ThayTheChuoi(buf, strKhoa, sv.Khoa), fb);
-		if (d != -1)
-			fputws(ThayTheChuoi(buf, strKhoaHoc, sv.KhoaHoc), fb);
-		if (e != -1)
-			fputws(ThayTheChuoi(buf, strNgaySinh, sv.NgaySinh), fb);
-		if (f != -1)
-			fputws(ThayTheChuoi(buf, strHinhAnh, sv.Anh), fb);
-		if (g != -1)
-			fputws(ThayTheChuoi(buf, strEmail, sv.Email), fb);
-		if (h != -1)
-			fputws(ThayTheChuoi(buf, strMoTa, sv.MoTa), fb);
-		if (k != -1)
-			fputws(ThayTheChuoi(buf, strSoThich, sv.SoThich), fb);
-		
-		if (a == -1 && b ==-1 && c ==-1 && d ==-1 && e ==-1 && f ==-1 && g ==-1 && h ==-1 && k == -1)
+		DrawSticker(Y, " ");
+		Y.x++;
+		DrawSticker(Y, "Y");
+	}
+}
+void MoveLeft()
+{
+	if (Y.x > 1) {
+		DrawSticker(Y, " ");
+		Y.x--;
+		DrawSticker(Y, "Y");
+	}
+}
+void MoveDown()
+{
+	if (Y.y < HEIGH_CONSOLE - 1)
+	{
+		DrawSticker(Y, " ");
+		Y.y++;
+		DrawSticker(Y, "Y");
+	}
+}
+void MoveUp()
+{
+	if (Y.y > 1)
+	{
+		DrawSticker(Y, " ");
+		Y.y--;
+		DrawSticker(Y, "Y");
+	}
+}
+void SubThread()
+{
+	while (1)
+	{
+		if (STATE) //Nếu người vẫn còn sống
 		{
-			fputws(buf, fb);
+			switch (MOVING) //Kiểm tra biến moving
+			{
+			case 'A':
+				MoveLeft();
+				break;
+			case 'D':
+				MoveRight();
+				break;
+			case 'W':
+				MoveUp();
+				break;
+			case 'S':
+				MoveDown();
+				break;
+			}
+			MOVING = ' ';// Tạm khóa không cho di chuyển, chờ nhận phím từ hàm main
+			EraseCars();
+			MoveCars();
+			DrawCars(".");
+			if (IsImpact(Y, Y.y))
+			{
+				ProcessDead(); // Kiểm tra xe có đụng không
+			}
+			if (Y.y == 1)
+				ProcessFinish(Y); // Kiểm tra xem về đích chưa
+			Sleep(100);//Hàm ngủ theo tốc độ SPEED
 		}
 	}
-	fclose(fb);
-	fclose(MaNguon);
 }
-
 
 void main()
 {
-	_setmode(_fileno(stdout), _O_U8TEXT);
-	_setmode(_fileno(stdin), _O_U8TEXT);
-	SINHVIEN* sv = (SINHVIEN*)malloc(10 * sizeof(SINHVIEN));
-	FILE* DuLieu = _wfopen(L"DuLieuSinhVien.csv", L"rt, ccs = UTF-8");
-	int line;
-	DocFileSinhVienCSV(DuLieu, sv, line);
-	XuatSV(sv, line);
-	for (int i = 0; i < line; i++)
+	int temp;
+	FixConsoleWindow();
+	srand(unsigned int(NULL));
+	StartGame();
+	thread t1(SubThread);
+	while (1)
 	{
-		XuatHTML(sv[i]);
+		temp = toupper(_getch());
+		if (STATE == 1)
+		{
+			if (temp == 27) {
+				ExitGame(t1.native_handle());
+				return;
+			}
+			else if (temp == 'P') {
+				PauseGame(t1.native_handle());
+			}
+			else{
+				ResumeThread((HANDLE)t1.native_handle());
+				if (temp == 'D' || temp == 'A' || temp == 'W' || temp == 'S')
+				{
+					MOVING = temp;
+				}
+			}
+		}
+		else
+		{
+			if (temp == 'Y') StartGame();
+			else{
+				ExitGame(t1.native_handle());
+				return;
+			}
+		}
 	}
-	free(sv);
-	fclose(DuLieu);
 }
